@@ -38,6 +38,11 @@
                                 <artifactId>webapp-runner</artifactId>
                                 <version>7.0.57.2</version>
                                 <destFileName>webapp-runner.jar</destFileName>
+                                <activation>
+                                    <property>
+                                        <name>env.DYNO</name>
+                                    </property>
+                                </activation>
                             </artifactItem>
                         </artifactItems>
                     </configuration>
@@ -66,5 +71,7 @@
         <!--</configuration>-->
       <!--</plugin>-->
     </plugins>
+
+
   </build>
 </project>
