@@ -38,11 +38,6 @@
                                 <artifactId>webapp-runner</artifactId>
                                 <version>7.0.57.2</version>
                                 <destFileName>webapp-runner.jar</destFileName>
-                                <activation>
-                                    <property>
-                                        <name>env.DYNO</name>
-                                    </property>
-                                </activation>
                             </artifactItem>
                         </artifactItems>
                     </configuration>
@@ -62,16 +57,18 @@
           <target>1.8</target>
         </configuration>
       </plugin>
-      <!--<plugin>-->
-        <!--<groupId>org.apache.maven.plugins</groupId>-->
-        <!--<artifactId>maven-war-plugin</artifactId>-->
-        <!--<version>2.6</version>-->
-        <!--<configuration>-->
-          <!--<failOnMissingWebXml>false</failOnMissingWebXml>-->
-        <!--</configuration>-->
-      <!--</plugin>-->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>2.6</version>
+        <configuration>
+            <warSourceDirectory>src/main/webapp</warSourceDirectory>
+            <warName>trucktracker</warName>
+            <failOnMissingWebXml>false</failOnMissingWebXml>
+        </configuration>
+      </plugin>
     </plugins>
-
+      <finalName>trucktracker</finalName>
 
   </build>
 </project>
