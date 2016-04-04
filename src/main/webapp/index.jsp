@@ -2,7 +2,7 @@
 <head>
     <title>Truck Tracker</title>
     <meta charset="utf-8">
-    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css">
+    <link rel="stylesheet" href="https://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css">
 </head>
 <body>
 <div id="mapid" style="width: 1000px; height: 800px; position: relative;"></div>
