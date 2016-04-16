@@ -19,6 +19,27 @@
       <artifactId>leaflet</artifactId>
       <version>0.7</version>
     </dependency>
+    <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-webmvc</artifactId>
+        <version>4.1.9.RELEASE</version>
+    </dependency>
+    <dependency>
+        <groupId>javax</groupId>
+        <artifactId>javaee-web-api</artifactId>
+        <scope>provided</scope>
+        <version>7.0</version>
+    </dependency>
+    <dependency>
+        <groupId>com.googlecode.json-simple</groupId>
+        <artifactId>json-simple</artifactId>
+        <version>1.1.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>9.4.1208</version>
+    </dependency>
   </dependencies>
 
   <build>
