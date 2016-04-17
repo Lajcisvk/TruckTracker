@@ -52,7 +52,7 @@
                     buffer--;
                 getIsOnTheRoad(cars);
             }
-
+            
             function getCarDataUpdateCallback(response) {
                 cars.forEach(function (car) {
                     response.forEach(function (o) {
@@ -60,6 +60,7 @@
                             var data = o.data[0].pos_gps.replace(/["'()]/g, "").split(",");
                             var latLng = new L.LatLng(data[0], data[1]);
                             car.marker.setLatLng(latLng);
+                            car.map_position = data;
                         }
                     });
                 });
@@ -80,7 +81,7 @@
                         callback(response);
                     },
                     error: function (xhr) {
-                        //Do Something to handle error
+                       if(buffer > 0) buffer --;
                     }
                 });
             }
@@ -115,15 +116,17 @@
                             var marker = L.marker(response.mapped_coordinate);
                             var distance = marker.getLatLng().distanceTo(carMarker.getLatLng());
                             if (distance < 5) {
-                                carMarker.bindPopup("<b>You are on the road</b><br>position: " + car.map_position);
+                                var message = "<b>You are on the road</b><br>position: " + car.map_position
+                                setPopup(carMarker, message);
                                 if (car.data[0].speed === 0) {
                                     carMarker.setIcon(redIcon);
-                                }else{
+                                } else {
                                     carMarker.setIcon(greenIcon);
                                 }
                             } else {
-                                carMarker.bindPopup("<b>You are not on the road</b><br>position: " + car.map_position);
+                                var message = "<b>You are not on the road</b><br>position: " + car.map_position
                                 carMarker.setIcon(yellowIcon);
+                                setPopup(carMarker, message);
                             }
                         },
                         error: function (xhr) {
@@ -131,6 +134,14 @@
                         }
                     });
                 });
+            }
+
+            function setPopup(carMarker, message) {
+                if (carMarker._popup == null) {
+                    carMarker.bindPopup(message);
+                } else {
+                    carMarker._popup.setContent(message);
+                }
             }
 
             function getMostRecentDate(cars) {
