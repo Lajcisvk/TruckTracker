@@ -2,16 +2,27 @@
     <head>
         <title>Truck Tracker</title>
         <meta charset="utf-8">
-        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/jquery.nstSlider.min.css">
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
         <script src="js/leaflet.js"></script>
+        <script src="js/moment.js"></script>
+        <script src="js/jquery.nstSlider.min.js"></script>
         <script src="js/Leaflet.MakiMarkers.js"></script>
 
     </head>
     <body>
-        <div id="mapid" style="width: 1000px; height: 800px; position: relative;"></div>
+        <div style="width: 100%" class="nstSlider" data-range_min="0" data-range_max="1000" 
+             data-cur_min="0">
+
+            <div class="leftGrip"></div>
+        </div>
+        <div class="leftLabel"></div>
+        <div id="mapid" style="width: 100%; height: 90%; position: relative;"></div>
         <script>
-            var cars = new Array();
+            var cars;
+            var mostRecentDate;
+            var buffer = 0;
             var mymap = L.map('mapid').setView([49.21, 16.6], 6);
             L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibGFqY2kiLCJhIjoiY2ltbHJza2gxMDAwbHcwbHcyaDIyNDEybiJ9.nU1OddV3p8C8uWJhFppiIA', {
                 maxZoom: 21,
@@ -20,27 +31,80 @@
                         'Imagery © <a href="http://mapbox.com">Mapbox</a>',
                 id: 'mapbox.streets'
             }).addTo(mymap);
-            $.ajax({
-                url: "http://lit-mountain-38735.herokuapp.com/api",
-                type: "get", //send it through get method
-                success: function (response) {
-                    cars = response;
-                    cars.forEach(function (o) {
-                        var data = o.data[0].pos_gps.replace(/\(|\)/, "").split(",");
-                        var icon = L.MakiMarkers.icon({icon: "circle", color: "#80FF00", size: "m"});
-                        var marker = L.marker(data,{icon: icon});
-                        marker.addTo(mymap);
-                        o.marker = marker;
-                    });
-                    getIsOnTheRoad(cars);
-                },
-                error: function (xhr) {
-                    //Do Something to handle error
-                }
+
+            $(document).ready(function () {
+                getCarData(getCarDataInitCallback);
             });
 
+            function getCarDataInitCallback(response) {
+                cars = response;
+                mostRecentDate = getMostRecentDate(cars);
+                cars.forEach(function (o) {
+                    var data = o.data[0].pos_gps.replace(/["'()]/g, "").split(",");
+                    var icon = L.MakiMarkers.icon({icon: "circle", color: "#80FF00", size: "m"});
+                    var marker = L.marker(data, {icon: icon});
+                    marker.addTo(mymap);
+                    o.map_position = data;
+                    o.marker = marker;
+                });
+                initSlider();
+                if (buffer > 0)
+                    buffer--;
+                getIsOnTheRoad(cars);
+            }
+
+            function getCarDataUpdateCallback(response) {
+                cars.forEach(function (car) {
+                    response.forEach(function (o) {
+                        if (car.car_key == o.car_key && car.data[0].pos_gps != o.data[0].pos_gps) {
+                            var data = o.data[0].pos_gps.replace(/["'()]/g, "").split(",");
+                            var latLng = new L.LatLng(data[0], data[1]);
+                            car.marker.setLatLng(latLng);
+                        }
+                    });
+                });
+                if (buffer > 0)
+                    buffer--;
+                getIsOnTheRoad(cars);
+            }
+
+            function getCarData(callback, since, until) {
+                if (buffer > 5)
+                    return;
+                buffer++;
+                $.ajax({
+                    url: "http://lit-mountain-38735.herokuapp.com/api",
+                    data: {since: since, until: until},
+                    type: "get", //send it through get method
+                    success: function (response) {
+                        callback(response);
+                    },
+                    error: function (xhr) {
+                        //Do Something to handle error
+                    }
+                });
+            }
+
+            function initSlider() {
+                $('.nstSlider').nstSlider({
+                    "left_grip_selector": ".leftGrip",
+                    "value_changed_callback": function (cause, leftValue, rightValue) {
+                        var until = new Date(mostRecentDate - leftValue * 60000 * 5);
+                        var since = new Date(until - 60000 * 5);
+                        var sinceText = moment(since).utc().format("YYYY-MM-DD hh:mm:ss") + ":00";
+                        var untilText = moment(until).utc().format("YYYY-MM-DD hh:mm:ss") + ":00";
+                        $(this).parent().find('.leftLabel').text(since.toGMTString());
+                        getCarData(getCarDataUpdateCallback, sinceText, untilText);
+                    }
+                });
+            }
+
             function getIsOnTheRoad(cars) {
+                if (buffer != 0)
+                    return;
                 var redIcon = L.MakiMarkers.icon({icon: "circle", color: "#FF0000", size: "m"});
+                var yellowIcon = L.MakiMarkers.icon({icon: "circle", color: "#FFFB00", size: "m"});
+                var greenIcon = L.MakiMarkers.icon({icon: "circle", color: "#80FF00", size: "m"});
                 cars.forEach(function (car) {
                     var carMarker = car.marker;
                     $.ajax({
@@ -50,11 +114,16 @@
                         success: function (response) {
                             var marker = L.marker(response.mapped_coordinate);
                             var distance = marker.getLatLng().distanceTo(carMarker.getLatLng());
-                            if (distance < 3) {
-                                carMarker.bindPopup("<b>You are on the road</b>");
+                            if (distance < 5) {
+                                carMarker.bindPopup("<b>You are on the road</b><br>position: " + car.map_position);
+                                if (car.data[0].speed === 0) {
+                                    carMarker.setIcon(redIcon);
+                                }else{
+                                    carMarker.setIcon(greenIcon);
+                                }
                             } else {
-                                carMarker.bindPopup("<b>You are not on the road</b>");
-                                carMarker.setIcon(redIcon);
+                                carMarker.bindPopup("<b>You are not on the road</b><br>position: " + car.map_position);
+                                carMarker.setIcon(yellowIcon);
                             }
                         },
                         error: function (xhr) {
@@ -64,6 +133,18 @@
                 });
             }
 
+            function getMostRecentDate(cars) {
+                var dates = [];
+                cars.forEach(function (car) {
+                    dates.push(new Date(car.data[0].time.replace(" ", "T")));
+                });
+                return new Date(Math.max.apply(null, dates));
+            }
+
+            function formatDate(date) {
+                var moment = moment(date);
+                return moment.format("YYYY-MM-DD hh:mm:ss") + ":00"
+            }
         </script>
     </body>
 </html>
