@@ -34,10 +34,21 @@ public class CarController {
 
     @RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public final String getCars(@RequestParam(required=false) final String since,
-                                @RequestParam(required=false) final String until)
+                                @RequestParam(required=false) final String until,
+                                @RequestParam(required=false) final String in)
             throws Exception {
         PreparedStatement statement;
-        if ((since == null) && (until == null))
+        if (in != null)
+        {
+            statement = connection.prepareStatement(
+                    "SELECT DISTINCT on (car_key) * FROM tracking " +
+                            "WHERE  time < ? " +
+                            "ORDER  BY car_key, time DESC"
+            );
+            Date date = parseDate(in);
+            statement.setTimestamp(1, new Timestamp(date.getTime()));
+        }
+        else if ((since == null) && (until == null))
         {
             statement = connection.prepareStatement(
                     "SELECT DISTINCT on (car_key) * FROM tracking m WHERE time = " +
@@ -45,7 +56,7 @@ public class CarController {
                             "SELECT MAX (time) FROM tracking " +
                             "WHERE car_key = m.car_key " +
                          ") " +
-                        "ORDER BY car_key;"
+                        "ORDER BY car_key"
             );
         }
         else {
