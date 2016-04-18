@@ -2,23 +2,53 @@
     <head>
         <title>Truck Tracker</title>
         <meta charset="utf-8">
+        <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.1/css/font-awesome.min.css" rel="stylesheet">
         <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/leaflet-sidebar.min.css">
+        <link rel="stylesheet" href="css/style.css">
         <link rel="stylesheet" href="css/jquery.nstSlider.min.css">
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
         <script src="js/leaflet.js"></script>
         <script src="js/moment.js"></script>
         <script src="js/jquery.nstSlider.min.js"></script>
         <script src="js/Leaflet.MakiMarkers.js"></script>
+        <script src="js/leaflet-sidebar.min.js"></script>
 
     </head>
     <body>
-        <div style="width: 100%" class="nstSlider" data-range_min="0" data-range_max="1000" 
-             data-cur_min="0">
+        <div id="sidebar" class="sidebar collapsed">
+            <!-- Nav tabs -->
+            <div class="sidebar-tabs">
+                <ul role="tablist">
+                    <li><a href="#cars" role="tab"><i class="fa fa-car"></i></a></li>
+                    <li><a href="#timetravel" role="tab"><i class="fa fa-clock-o"></i></a></li>
+                </ul>
+            </div>
 
-            <div class="leftGrip"></div>
+            <!-- Tab panes -->
+            <div class="sidebar-content">
+                <div class="sidebar-pane" id="cars">
+                    <h1 class="sidebar-header">
+                        Cars
+                        <span class="sidebar-close"><i class="fa fa-caret-left"></i></span>
+                    </h1>
+                    <div id="cars-content">                        
+                    </div>
+                </div>
+
+                <div class="sidebar-pane" id="timetravel">
+                    <h1 class="sidebar-header">Time Travel<span class="sidebar-close"><i class="fa fa-caret-left"></i></span></h1>
+                    <br>
+                    <div style="width: 100%;" class="nstSlider" data-range_min="1" data-range_max="1000" 
+                         data-cur_min="1">
+
+                        <div class="leftGrip"></div>
+                    </div>
+                    <div class="leftLabel"></div>
+                </div>
+            </div>
         </div>
-        <div class="leftLabel"></div>
-        <div id="mapid" style="width: 100%; height: 90%; position: relative;"></div>
+        <div id="mapid" class="sidebar-map" style="width: 100%; height: 100%; position: relative;"></div>
         <script>
             var cars;
             var mostRecentDate;
@@ -31,7 +61,7 @@
                         'Imagery © <a href="http://mapbox.com">Mapbox</a>',
                 id: 'mapbox.streets'
             }).addTo(mymap);
-
+            var sidebar = L.control.sidebar('sidebar').addTo(mymap);
             $(document).ready(function () {
                 getCarData(getCarDataInitCallback);
             });
@@ -46,42 +76,91 @@
                     marker.addTo(mymap);
                     o.map_position = data;
                     o.marker = marker;
+                    o.marker.show = true;
                 });
                 initSlider();
+                displayCars();
                 if (buffer > 0)
                     buffer--;
                 getIsOnTheRoad(cars);
             }
             
+            function displayCars(){
+                cars.forEach(function (car){
+                    var html =  '<div class="car_box" id="'+car.spz+'">' +
+                                '<h3>SPZ: <span class="car-spz">'+car.spz+'</span></h2>' +
+                                '<h3>Color: <span class="car-color">'+car.color+'</span></h2>' +
+                                '<h3>Speed: <span class="car-speed">'+car.data[0].speed+'</span></h2>' +
+                                '</div>';
+                    $( "#cars-content" ).append(html);
+                    $("#"+car.spz).data('car',car);
+                    $("#"+car.spz).click(function(){
+                        mymap.panTo($(this).data('car').marker.getLatLng());
+                    });
+                });
+            }
+            
+            function updateCarDisplay(car){
+                var element = $("#"+car.spz);
+                element.find(".car-speed").html(car.data[0].speed);
+                if(car.marker.show){
+                    element.show();
+                }else{
+                    element.hide();
+                }
+            }
+
             function getCarDataUpdateCallback(response) {
                 cars.forEach(function (car) {
+                    var found = false;
                     response.forEach(function (o) {
-                        if (car.car_key == o.car_key && car.data[0].pos_gps != o.data[0].pos_gps) {
+                        if (car.car_key == o.car_key) {
                             var data = o.data[0].pos_gps.replace(/["'()]/g, "").split(",");
                             var latLng = new L.LatLng(data[0], data[1]);
                             car.marker.setLatLng(latLng);
+                            car.data = o.data;
                             car.map_position = data;
+                            car.marker.show = true;
+                            found = true;
                         }
                     });
+                    if (!found) {
+                        car.marker.show = false;
+                    }
+                    updateCarDisplay(car);
                 });
+                hideOrShowMarkers();
                 if (buffer > 0)
                     buffer--;
                 getIsOnTheRoad(cars);
             }
 
-            function getCarData(callback, since, until) {
+
+            function hideOrShowMarkers() {
+                cars.forEach(function (car) {
+                    if (!mymap.hasLayer(car.marker)) {
+                        mymap.addLayer(car.marker);
+                    }
+                    if (!car.marker.show) {
+                        mymap.removeLayer(car.marker);
+                    }
+                });
+            }
+
+            function getCarData(callback, time) {
                 if (buffer > 5)
                     return;
                 buffer++;
                 $.ajax({
                     url: "http://lit-mountain-38735.herokuapp.com/api",
-                    data: {since: since, until: until},
+                    data: {in: time},
                     type: "get", //send it through get method
                     success: function (response) {
                         callback(response);
                     },
                     error: function (xhr) {
-                       if(buffer > 0) buffer --;
+                        if (buffer > 0)
+                            buffer--;
                     }
                 });
             }
@@ -90,12 +169,10 @@
                 $('.nstSlider').nstSlider({
                     "left_grip_selector": ".leftGrip",
                     "value_changed_callback": function (cause, leftValue, rightValue) {
-                        var until = new Date(mostRecentDate - leftValue * 60000 * 5);
-                        var since = new Date(until - 60000 * 5);
-                        var sinceText = moment(since).utc().format("YYYY-MM-DD hh:mm:ss") + ":00";
-                        var untilText = moment(until).utc().format("YYYY-MM-DD hh:mm:ss") + ":00";
-                        $(this).parent().find('.leftLabel').text(since.toGMTString());
-                        getCarData(getCarDataUpdateCallback, sinceText, untilText);
+                        var time = new Date(mostRecentDate - leftValue * 60000 * 5);
+                        var timeText = moment(time).utc().format("YYYY-MM-DD HH:mm:ss");
+                        $(this).parent().find('.leftLabel').text(timeText);
+                        getCarData(getCarDataUpdateCallback, timeText);
                     }
                 });
             }
@@ -152,10 +229,6 @@
                 return new Date(Math.max.apply(null, dates));
             }
 
-            function formatDate(date) {
-                var moment = moment(date);
-                return moment.format("YYYY-MM-DD hh:mm:ss") + ":00"
-            }
         </script>
     </body>
 </html>
