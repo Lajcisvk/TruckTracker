@@ -147,6 +147,7 @@
                 if (buffer > 0)
                     buffer--;
                 getIsOnTheRoad(cars);
+                addCountryToCars();
                 refreshCarsDisplay();
             }
 
@@ -169,7 +170,7 @@
                     type: "get", //send it through get method
                     success: function (response) {
                         states = L.geoJson().addTo(mymap);
-                        states.addData(response);                     
+                        states.addData(response);
                         //mymap.removeLayer(states);
                         addCountryToCars();
                         refreshCarsDisplay();
