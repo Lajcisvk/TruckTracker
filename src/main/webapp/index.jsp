@@ -10,6 +10,7 @@
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
         <script src="js/leaflet.js"></script>
         <script src="js/moment.js"></script>
+        <script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-pip/v0.0.2/leaflet-pip.js'></script>
         <script src="js/jquery.nstSlider.min.js"></script>
         <script src="js/Leaflet.MakiMarkers.js"></script>
         <script src="js/leaflet-sidebar.min.js"></script>
@@ -52,6 +53,7 @@
         <script>
             var cars;
             var mostRecentDate;
+            var states;
             var buffer = 0;
             var mymap = L.map('mapid').setView([49.21, 16.6], 6);
             L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibGFqY2kiLCJhIjoiY2ltbHJza2gxMDAwbHcwbHcyaDIyNDEybiJ9.nU1OddV3p8C8uWJhFppiIA', {
@@ -83,31 +85,44 @@
                 if (buffer > 0)
                     buffer--;
                 getIsOnTheRoad(cars);
+                displayCountries();
             }
-            
-            function displayCars(){
-                cars.forEach(function (car){
-                    var html =  '<div class="car_box" id="'+car.spz+'">' +
-                                '<h3>SPZ: <span class="car-spz">'+car.spz+'</span></h2>' +
-                                '<h3>Color: <span class="car-color">'+car.color+'</span></h2>' +
-                                '<h3>Speed: <span class="car-speed">'+car.data[0].speed+'</span></h2>' +
-                                '</div>';
-                    $( "#cars-content" ).append(html);
-                    $("#"+car.spz).data('car',car);
-                    $("#"+car.spz).click(function(){
+
+            function displayCars() {
+                cars.forEach(function (car) {
+                    var html = '<div class="car_box" id="' + car.spz + '">' +
+                            '<h3>SPZ: <span class="car-spz">' + car.spz + '</span></h2>' +
+                            '<h3>Color: <span class="car-color">' + car.color + '</span></h2>' +
+                            '<h3>Speed: <span class="car-speed">' + car.data[0].speed + '</span></h2>' +
+                            '<h3>Country: <span class="car-country">Loading..</span></h2>' +
+                            '<h3>Road status: <span class="car-road-status">Loading..</span></h2>' +
+                            '<h3>Coordinates: <span class="car-coordinates">' + car.map_position + '</span></h2>' +
+                            '</div>';
+                    $("#cars-content").append(html);
+                    $("#" + car.spz).data('car', car);
+                    $("#" + car.spz).click(function () {
                         mymap.panTo($(this).data('car').marker.getLatLng());
                     });
                 });
             }
-            
-            function updateCarDisplay(car){
-                var element = $("#"+car.spz);
+
+            function updateCarDisplay(car) {
+                var element = $("#" + car.spz);
                 element.find(".car-speed").html(car.data[0].speed);
-                if(car.marker.show){
+                element.find(".car-country").html(car.country);
+                element.find(".car-road-status").html(car.roadStatus ? "Is on the road" : "Is not on the road");
+                element.find(".car-coordinates").html(car.map_position);
+                if (car.marker.show) {
                     element.show();
-                }else{
+                } else {
                     element.hide();
                 }
+            }
+
+            function refreshCarsDisplay() {
+                cars.forEach(function (car) {
+                    updateCarDisplay(car);
+                });
             }
 
             function getCarDataUpdateCallback(response) {
@@ -127,12 +142,12 @@
                     if (!found) {
                         car.marker.show = false;
                     }
-                    updateCarDisplay(car);
                 });
                 hideOrShowMarkers();
                 if (buffer > 0)
                     buffer--;
                 getIsOnTheRoad(cars);
+                refreshCarsDisplay();
             }
 
 
@@ -143,6 +158,36 @@
                     }
                     if (!car.marker.show) {
                         mymap.removeLayer(car.marker);
+                    }
+                });
+            }
+
+            function displayCountries() {
+                $.ajax({
+                    dataType: 'json',
+                    url: "https://raw.githubusercontent.com/myethiopia/NaturalEarth/master/region_un/GeoJson/region_un_Europe_subunits.json",
+                    type: "get", //send it through get method
+                    success: function (response) {
+                        states = L.geoJson().addTo(mymap);
+                        states.addData(response);                     
+                        //mymap.removeLayer(states);
+                        addCountryToCars();
+                        refreshCarsDisplay();
+                    },
+                    error: function (xhr) {
+
+                    }
+                });
+            }
+
+            function addCountryToCars() {
+                cars.forEach(function (car) {
+                    var layer = leafletPip.pointInLayer(car.marker.getLatLng(), states, true);
+                    if (layer.length) {
+                        car.country = layer[0].feature.properties.name;
+                    }
+                    else {
+                        car.country = "Not on the map";
                     }
                 });
             }
@@ -193,18 +238,17 @@
                             var marker = L.marker(response.mapped_coordinate);
                             var distance = marker.getLatLng().distanceTo(carMarker.getLatLng());
                             if (distance < 5) {
-                                var message = "<b>You are on the road</b><br>position: " + car.map_position
-                                setPopup(carMarker, message);
+                                car.roadStatus = true;
                                 if (car.data[0].speed === 0) {
                                     carMarker.setIcon(redIcon);
                                 } else {
                                     carMarker.setIcon(greenIcon);
                                 }
                             } else {
-                                var message = "<b>You are not on the road</b><br>position: " + car.map_position
+                                car.roadStatus = false;
                                 carMarker.setIcon(yellowIcon);
-                                setPopup(carMarker, message);
                             }
+                            updateCarDisplay(car);
                         },
                         error: function (xhr) {
                             //Do Something to handle error
