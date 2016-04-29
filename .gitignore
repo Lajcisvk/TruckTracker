@@ -37,3 +37,6 @@ nbdist/
 nbactions.xml
 nb-configuration.xml
 .nb-gradle/
+
+.graph-cache/
+*.pbf

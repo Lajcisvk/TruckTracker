@@ -42,7 +42,7 @@ public class CarController {
         {
             statement = connection.prepareStatement(
                     "SELECT DISTINCT on (car_key) * FROM tracking " +
-                            "WHERE  time < ? " +
+                            "WHERE  time <= ? " +
                             "ORDER  BY car_key, time DESC"
             );
             Date date = parseDate(in);
@@ -51,12 +51,17 @@ public class CarController {
         else if ((since == null) && (until == null))
         {
             statement = connection.prepareStatement(
-                    "SELECT DISTINCT on (car_key) * FROM tracking m WHERE time = " +
+                    "SELECT * FROM (SELECT DISTINCT on (time) * FROM tracking m WHERE time = " +
                          "( " +
                             "SELECT MAX (time) FROM tracking " +
                             "WHERE car_key = m.car_key " +
                          ") " +
-                        "ORDER BY car_key"
+                        "OR time =" +
+                        "( " +
+                            "SELECT MIN (time) FROM tracking " +
+                            "WHERE car_key = m.car_key " +
+                         ") " +
+                        "ORDER BY time) s ORDER BY car_key, time"
             );
         }
         else {

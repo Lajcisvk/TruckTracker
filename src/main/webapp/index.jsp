@@ -40,8 +40,8 @@
                 <div class="sidebar-pane" id="timetravel">
                     <h1 class="sidebar-header">Time Travel<span class="sidebar-close"><i class="fa fa-caret-left"></i></span></h1>
                     <br>
-                    <div style="width: 100%;" class="nstSlider" data-range_min="1" data-range_max="1000" 
-                         data-cur_min="1">
+                    <div style="width: 100%;" class="nstSlider" data-range_min="0" data-range_max="1000" 
+                         data-cur_min="0">
 
                         <div class="leftGrip"></div>
                     </div>
@@ -72,12 +72,14 @@
                 cars = response;
                 mostRecentDate = getMostRecentDate(cars);
                 cars.forEach(function (o) {
-                    var data = o.data[0].pos_gps.replace(/["'()]/g, "").split(",");
+                    var data = o.data[1].pos_gps.replace(/["'()]/g, "").split(",");
                     var icon = L.MakiMarkers.icon({icon: "circle", color: "#80FF00", size: "m"});
                     var marker = L.marker(data, {icon: icon});
                     marker.addTo(mymap);
                     o.map_position = data;
                     o.marker = marker;
+                    o.end_point = o.data[1];
+                    o.start_point = o.data[0];
                     o.marker.show = true;
                 });
                 initSlider();
@@ -85,8 +87,63 @@
                 if (buffer > 0)
                     buffer--;
                 getIsOnTheRoad(cars);
+                getInitCarRoutes(cars);
                 displayCountries();
+
             }
+
+            function removeBrackets(string) {
+                return string.replace(/["'()]/g, "")
+            }
+
+            function getInitCarRoutes(cars) {
+                cars.forEach(function (car) {
+                    $.ajax({
+                        url: "/route?point=" + removeBrackets(car.start_point.pos_gps) + "&point=" + removeBrackets(car.end_point.pos_gps),
+                        type: "get", //send it through get method
+                        success: function (response) {
+                            car.total_est_time = response.paths[0].time;
+                            car.delay = "Car is in final destination"
+                        },
+                        error: function (xhr) {
+                            car.delay = "Not available"
+                        }
+                    });
+                });
+            }
+
+
+            function getCurrentCarRoutes(cars) {
+                if (buffer != 0)
+                    return;
+                cars.forEach(function (car) {
+                    if (car.total_est_time) {
+                        $.ajax({
+                            url: "/route?point=" + car.map_position[0] + "," + car.map_position[1] + "&point=" + removeBrackets(car.end_point.pos_gps),
+                            type: "get", //send it through get method
+                            success: function (response) {
+                                car.current_est_time = response.paths[0].time;
+                                car.delay = calculateDelay(car);
+                                updateCarDisplay(car);
+                            },
+                            error: function (xhr) {
+
+                            }
+                        });
+                    }
+                });
+            }
+
+            function calculateDelay(car) {
+                var startTime = new Date(car.start_point.time.replace(" ", "T")).getTime();
+                var currentTime = new Date(car.data[0].time.replace(" ", "T")).getTime();
+                var totalEndTime = car.total_est_time;
+                var currentEndTime = car.current_est_time;
+                if (currentEndTime == 0)
+                    return "Car is in final destination"
+                return ((currentTime - startTime) + currentEndTime) - totalEndTime;
+            }
+
 
             function displayCars() {
                 cars.forEach(function (car) {
@@ -97,6 +154,7 @@
                             '<h3>Country: <span class="car-country">Loading..</span></h2>' +
                             '<h3>Road status: <span class="car-road-status">Loading..</span></h2>' +
                             '<h3>Coordinates: <span class="car-coordinates">' + car.map_position + '</span></h2>' +
+                            '<h3>Delay: <span class="car-delay">Loading..</span></h2>' +
                             '</div>';
                     $("#cars-content").append(html);
                     $("#" + car.spz).data('car', car);
@@ -112,6 +170,7 @@
                 element.find(".car-country").html(car.country);
                 element.find(".car-road-status").html(car.roadStatus ? "Is on the road" : "Is not on the road");
                 element.find(".car-coordinates").html(car.map_position);
+                element.find(".car-delay").html(car.delay);
                 if (car.marker.show) {
                     element.show();
                 } else {
@@ -127,7 +186,7 @@
 
             function getCarDataUpdateCallback(response) {
                 cars.forEach(function (car) {
-                    var found = false;
+                    car.marker.show = false;
                     response.forEach(function (o) {
                         if (car.car_key == o.car_key) {
                             var data = o.data[0].pos_gps.replace(/["'()]/g, "").split(",");
@@ -136,12 +195,8 @@
                             car.data = o.data;
                             car.map_position = data;
                             car.marker.show = true;
-                            found = true;
                         }
                     });
-                    if (!found) {
-                        car.marker.show = false;
-                    }
                 });
                 hideOrShowMarkers();
                 if (buffer > 0)
@@ -149,6 +204,7 @@
                 getIsOnTheRoad(cars);
                 addCountryToCars();
                 refreshCarsDisplay();
+                getCurrentCarRoutes(cars);
             }
 
 
@@ -198,7 +254,7 @@
                     return;
                 buffer++;
                 $.ajax({
-                    url: "http://lit-mountain-38735.herokuapp.com/api",
+                    url: "/api",
                     data: {in: time},
                     type: "get", //send it through get method
                     success: function (response) {
@@ -232,12 +288,11 @@
                 cars.forEach(function (car) {
                     var carMarker = car.marker;
                     $.ajax({
-                        url: "http://router.project-osrm.org/nearest",
+                        url: "/nearest",
                         type: "get", //send it through get method
-                        data: {loc: carMarker.getLatLng().lat + "," + carMarker.getLatLng().lng},
+                        data: {point: carMarker.getLatLng().lat + "," + carMarker.getLatLng().lng},
                         success: function (response) {
-                            var marker = L.marker(response.mapped_coordinate);
-                            var distance = marker.getLatLng().distanceTo(carMarker.getLatLng());
+                            var distance = response.distance;
                             if (distance < 5) {
                                 car.roadStatus = true;
                                 if (car.data[0].speed === 0) {
@@ -269,7 +324,7 @@
             function getMostRecentDate(cars) {
                 var dates = [];
                 cars.forEach(function (car) {
-                    dates.push(new Date(car.data[0].time.replace(" ", "T")));
+                    dates.push(new Date(car.data[1].time.replace(" ", "T")));
                 });
                 return new Date(Math.max.apply(null, dates));
             }
