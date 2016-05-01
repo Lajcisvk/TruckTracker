@@ -51,17 +51,17 @@ public class CarController {
         else if ((since == null) && (until == null))
         {
             statement = connection.prepareStatement(
-                    "SELECT * FROM (SELECT DISTINCT on (time) * FROM tracking m WHERE time = " +
-                         "( " +
-                            "SELECT MAX (time) FROM tracking " +
-                            "WHERE car_key = m.car_key " +
-                         ") " +
-                        "OR time =" +
-                        "( " +
-                            "SELECT MIN (time) FROM tracking " +
-                            "WHERE car_key = m.car_key " +
-                         ") " +
-                        "ORDER BY time) s ORDER BY car_key, time"
+                    "select distinct on (x.car_key) *" +
+                            "from (" +
+                            "       select car_key, min(time) as mintime " +
+                            "       from tracking group by car_key" +
+                            "     ) as x inner join tracking as f on f.car_key = x.car_key and f.time = x.mintime " +
+                            "union all " +
+                            "select distinct on (x.car_key) *" +
+                            "from (" +
+                            "       select car_key, max(time) as maxtime" +
+                            "       from tracking group by car_key" +
+                            "     ) as x inner join tracking as f on f.car_key = x.car_key and f.time=x.maxtime order by 1;"
             );
         }
         else {
