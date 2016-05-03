@@ -79,7 +79,6 @@
                 mostRecentDate = getMostRecentDate(cars);
                 var data;
                 var marker;
-                console.log('started doing this');
                 cars.forEach(function (o) {
                     data = o.data[1].pos_gps.replace(/["'()]/g, "").split(",");
                     marker = L.marker(data, {icon: blackIcon});
@@ -111,7 +110,6 @@
                         inBounds.push(cars[i]);
                     }
                 }
-                console.log(inBounds.length);
                 inBounds.forEach(function (car) {
                     car.marker.show = true;
                     if (inBounds.length < 100) {
@@ -295,7 +293,6 @@
                 if (buffer > 0)
                     return;
                 buffer++;
-                console.log('calling server');
                 $.ajax({
                     url: "/api",
                     data: {in: time},
@@ -313,16 +310,13 @@
             }
 
             function initSlider() {
-                console.log('got here');
                 $('.nstSlider').nstSlider({
                     "left_grip_selector": ".leftGrip",
                     "value_changed_callback": function (cause, leftValue, rightValue) {
                         var time = new Date(mostRecentDate - leftValue * 60000 * 5);
                         var timeText = moment(time).utc().format("YYYY-MM-DD HH:mm:ss");
                         $(this).parent().find('.leftLabel').text(timeText);
-                        console.log(init);
                         if (!init) {
-                            console.log('got here');
                             getCarData(getCarDataUpdateCallback, timeText);
                         }
                         init = false;
