@@ -293,16 +293,19 @@
                         data: {point: carMarker.getLatLng().lat + "," + carMarker.getLatLng().lng},
                         success: function (response) {
                             var distance = response.distance;
-                            if (distance < 5) {
-                                car.roadStatus = true;
-                                if (car.data[0].speed === 0) {
+                            if (car.data[0].speed === 0){
+                                if (distance < 2) {
+                                    car.roadStatus = true;
                                     carMarker.setIcon(redIcon);
-                                } else {
-                                    carMarker.setIcon(greenIcon);
                                 }
-                            } else {
-                                car.roadStatus = false;
-                                carMarker.setIcon(yellowIcon);
+                                else {
+                                    car.roadStatus = false;
+                                    carMarker.setIcon(yellowIcon);
+                                }
+                            }
+                            else {
+                                car.roadStatus = true;
+                                carMarker.setIcon(greenIcon);
                             }
                             updateCarDisplay(car);
                         },
