@@ -339,16 +339,17 @@
                     data: {point: carMarker.getLatLng().lat + "," + carMarker.getLatLng().lng},
                     success: function (response) {
                         distance = response.distance;
-                        if (distance < 5) {
-                            car.roadStatus = "Is on the road";
-                            if (car.data[0].speed === 0) {
+                        if (car.data[0].speed === 0) {
+                            if (distance < 2) {
+                                car.roadStatus = "Is on the road";
                                 carMarker.setIcon(redIcon);
                             } else {
-                                carMarker.setIcon(greenIcon);
+                                car.roadStatus = "Is not on the road";
+                                carMarker.setIcon(yellowIcon);
                             }
                         } else {
-                            car.roadStatus = "Is not on the road";
-                            carMarker.setIcon(yellowIcon);
+                            car.roadStatus = "Is on the road";
+                            carMarker.setIcon(greenIcon);
                         }
                         updateCarDisplay(car);
                         car.onTheRoadLoaded = true;
