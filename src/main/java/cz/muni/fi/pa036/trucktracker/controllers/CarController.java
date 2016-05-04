@@ -61,7 +61,7 @@ public class CarController {
                             "from (" +
                             "       select car_key, max(time) as maxtime" +
                             "       from tracking group by car_key" +
-                            "     ) as x inner join tracking as f on f.car_key = x.car_key and f.time=x.maxtime order by 1, mintime;"
+                            "     ) as x inner join tracking as f on f.car_key = x.car_key and f.time=x.maxtime order by 1, time;"
             );
         }
         else {

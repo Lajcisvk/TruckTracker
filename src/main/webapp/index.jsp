@@ -90,8 +90,8 @@
                     marker.addTo(mymap);
                     o.map_position = data;
                     o.marker = marker;
-                    o.end_point = o.data[0];
-                    o.start_point = o.data[1];
+                    o.start_point = o.data[0];
+                    o.end_point = o.data[1];
                     o.marker.show = false;
                     o.onTheRoadLoaded = false;
                     o.initRoutesLoaded = false;
