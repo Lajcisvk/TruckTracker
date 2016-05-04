@@ -30,13 +30,12 @@
             <div class="sidebar-content">
                 <div class="sidebar-pane" id="cars">
                     <h1 class="sidebar-header">
-                        Cars
+                        <input type="checkbox" id="selectedOnlyCheckbox" onclick="toggleSelectOnly()"> Only selected
                         <span class="sidebar-close"><i class="fa fa-caret-left"></i></span>
                     </h1>
                     <div id="cars-content">                        
                     </div>
                 </div>
-
                 <div class="sidebar-pane" id="timetravel">
                     <h1 class="sidebar-header">Time Travel<span class="sidebar-close"><i class="fa fa-caret-left"></i></span></h1>
                     <br>
@@ -46,6 +45,10 @@
                         <div class="leftGrip"></div>
                     </div>
                     <div class="leftLabel"></div>
+                    <div>
+                        <button onclick="decreaseSlider()">Add 5 minutes</button>
+                        <button onclick="increaseSlider()">Remove 5 minutes</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -56,6 +59,8 @@
             var states;
             var buffer = 0;
             var selected;
+            var selectedOnly;
+            var timeText;
             var init = true;
             var redIcon = L.MakiMarkers.icon({icon: "circle", color: "#FF0000", size: "m"});
             var yellowIcon = L.MakiMarkers.icon({icon: "circle", color: "#FFFB00", size: "m"});
@@ -85,8 +90,8 @@
                     marker.addTo(mymap);
                     o.map_position = data;
                     o.marker = marker;
-                    o.end_point = o.data[1];
-                    o.start_point = o.data[0];
+                    o.end_point = o.data[0];
+                    o.start_point = o.data[1];
                     o.marker.show = false;
                     o.onTheRoadLoaded = false;
                     o.initRoutesLoaded = false;
@@ -110,8 +115,15 @@
                         inBounds.push(cars[i]);
                     }
                 }
+                if (selected != null) {
+                    inBounds.push(selected);
+                }
                 inBounds.forEach(function (car) {
-                    car.marker.show = true;
+                    if (selectedOnly && selected != null && selected.car_key != car.car_key) {
+                        car.marker.show = false;
+                    } else {
+                        car.marker.show = true;
+                    }
                     if (inBounds.length < 100) {
                         if (!car.onTheRoadLoaded) {
                             getIsOnTheRoad(car);
@@ -157,7 +169,8 @@
                         type: "get", //send it through get method
                         success: function (response) {
                             car.current_est_time = response.paths[0].time;
-                            car.delay = calculateDelay(car);
+                            var delay = calculateDelay(car);
+                            car.delay =  (delay < 0 ? '- ': '' ) + moment.utc(delay).format("HH:mm:ss");
                             car.currentRoutesLoaded = true;
                             updateCarDisplay(car);
                         },
@@ -169,13 +182,30 @@
                 }
             }
 
+            function toggleSelectOnly() {
+                console.log($('#selectedOnlyCheckbox').is(':checked'));
+                if ($('#selectedOnlyCheckbox').is(':checked')) {
+                    selectedOnly = true;
+                } else {
+                    selectedOnly = false;
+                }
+                redrawInBoundsCars();
+            }
+
+            function increaseSlider() {
+                $('.nstSlider').nstSlider('set_position', $('.nstSlider').nstSlider('get_current_min_value') + 1);
+            }
+            
+            function decreaseSlider() {
+                $('.nstSlider').nstSlider('set_position', $('.nstSlider').nstSlider('get_current_min_value') - 1);
+            }
+
             function calculateDelay(car) {
                 var startTime = new Date(car.start_point.time.replace(" ", "T")).getTime();
                 var currentTime = new Date(car.data[0].time.replace(" ", "T")).getTime();
+                console.log(car,car.data[0],car.data[0].time);
                 var totalEndTime = car.total_est_time;
                 var currentEndTime = car.current_est_time;
-                if (currentEndTime == 0)
-                    return "Car is in final destination"
                 return ((currentTime - startTime) + currentEndTime) - totalEndTime;
             }
 
@@ -196,6 +226,10 @@
                     $("#" + car.car_key).data('car', car);
                     $("#" + car.car_key).click(function () {
                         mymap.panTo($(this).data('car').marker.getLatLng());
+                        if (selected != null && selected.car_key !== $(this).data('car')) {
+                            $("#" + selected.car_key).removeClass('selected');
+                        }
+                        $(this).addClass('selected');
                         selected = $(this).data('car');
                     });
                 });
@@ -240,9 +274,10 @@
                         }
                     }
                 });
-                redrawInBoundsCars();
+                addCountryToCars(cars);
+                redrawInBoundsCars();         
                 if (selected != null) {
-                    mymap.panTo(selected.marker.getLatLng());
+                    mymap.panTo(selected.marker.getLatLng(), 5);
                 }
             }
 
@@ -314,12 +349,14 @@
                     "left_grip_selector": ".leftGrip",
                     "value_changed_callback": function (cause, leftValue, rightValue) {
                         var time = new Date(mostRecentDate - leftValue * 60000 * 5);
-                        var timeText = moment(time).utc().format("YYYY-MM-DD HH:mm:ss");
+                        timeText = moment(time).utc().format("YYYY-MM-DD HH:mm:ss");
                         $(this).parent().find('.leftLabel').text(timeText);
-                        if (!init) {
+                        if (cause == 'set_position') {
                             getCarData(getCarDataUpdateCallback, timeText);
                         }
-                        init = false;
+                    },
+                    "user_mouseup_callback": function (left, right) {
+                            getCarData(getCarDataUpdateCallback, timeText);
                     }
                 });
             }

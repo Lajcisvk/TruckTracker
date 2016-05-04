@@ -26,3 +26,7 @@ html, body, #mymap {
     background-color: #ddd;
     cursor: hand;
 }
+
+.selected{
+    background-color: #ddd;
+}
