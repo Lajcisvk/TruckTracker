@@ -13,7 +13,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * Rest Controller for book
+ * Controller for project API
  * @author Jan Mosat
  */
 @RestController
